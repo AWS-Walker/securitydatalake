@@ -19,15 +19,23 @@ The AWS security data lake solution imports AWS native logs from CloudWatch into
 
 
 
+========================================
 
 
 *italic* **bold**
 _italic_ __bold__
 Inline `code` here
 
-def foo():
-    if not bar:
-        return True
+````
+	def foo():
+    	if not bar:
+        	return True
+````
+
+    def bar():
+    	print foo
+
+
 
 * Item 2
   * Item 2a
