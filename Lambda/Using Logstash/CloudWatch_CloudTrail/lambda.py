@@ -86,17 +86,21 @@ def lambda_handler(event, context):
     for log_event in log_events:
 
         # fixes error with null value not enclosed in ""
-        log_entry = log_event['message'].replace('none', '"none"')
-        log_entry = log_event['message'].replace('False', '"False"')
-        log_entry = log_event['message'].replace('True', '"True"')
+        log_entry = log_event['message'].replace('none,', '"none",')
+        log_entry = log_event['message'].replace('False,', '"False",')
+        log_entry = log_event['message'].replace('True,', '"True",')
         
         # fixes Logstash debug error: logstash only hash map or arrays are supported
         log_entry = json.loads(log_entry)
         
+        #print(log_entry['requestID'])
+        if DEBUG: print(f"requestID:{log_entry['requestID']} eventSource:{log_entry['eventSource']} eventName:{log_entry['eventName']}")
+        
+        
         # merge metadata with event data
         log_entry = merge_dicts(log_entry, metadata)
         
-        
+        #print (log_entry)
 
         # check if log_entry field matches any defined regex for this field
         # Iterate through knownGood section within config file
@@ -108,12 +112,12 @@ def lambda_handler(event, context):
             
             # check each defined config statement
             if configkey in log_entry:
-                print (f"Checking if {configval} is in {log_entry[configkey]}")
+                #print (f"Checking if {configval} is in {log_entry[configkey]}")
                 searchstring = log_entry[configkey]
                 pattern = configval
                 raw_pattern = r"{}".format(pattern)
                 if re.search( raw_pattern, searchstring) : 
-                    print ("Found match in config file. Market as known good.")  
+                    #print ("Found match in config file. Market as known good.")  
                     log_entry["Enriched"]["knownGood"] = "true"
 
    
@@ -121,9 +125,9 @@ def lambda_handler(event, context):
         # Send to Logstash
         str_entry = json.dumps(log_entry)
         s.send((str_entry).encode("UTF-8"))
-        if DEBUG: print (f"sent logline {n}")
+        if DEBUG: print (f"sent {n} logline(s)")
         n=n+1
-        print(str_entry)
+        #print(str_entry)
     
     s.close()
     
