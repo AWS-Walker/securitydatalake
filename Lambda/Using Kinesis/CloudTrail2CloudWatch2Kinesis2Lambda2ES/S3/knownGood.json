@@ -1,0 +1,19 @@
+{
+	"knownGood" : [
+		{
+			"eventSource": "health.amazonaws.com"
+		},
+		{
+			"eventSource": "config.amazonaws.com"
+		},
+		{
+			"userIdentity.sessionContext.sessionIssuer.userName": "AwsSecurityAudit"
+		},
+		{
+			"eventName": "GetTrail.*"
+		}
+	]
+}
+
+
+
