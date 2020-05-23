@@ -13,7 +13,7 @@
 # single ES put or bulk?
 # date in the index!!!!
 # KMS
-
+# set cloudwatch error if this lambda throws an error
 
 
 
@@ -85,9 +85,16 @@ def connectES(esEndPoint):
 
 
 def indexDocElement(esClient, esIndex, jsonDoc):
-    # TEST ONLY jsonDoc='{"eventVersion": "1.05", "userIdentity": {"type": "AWSService", "invokedBy": "securityhub.amazonaws.com"}, "eventTime": "2020-05-21T03:49:02Z", "eventSource": "sts.amazonaws.com", "eventName": "AssumeRole", "awsRegion": "us-east-2", "sourceIPAddress": "securityhub.amazonaws.com", "userAgent": "securityhub.amazonaws.com", "requestParameters": {"roleArn": "arn:aws:iam::861828696892:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub", "roleSessionName": "securityhub"}, "responseElements": {"credentials": {"accessKeyId": "ASIA4RKH6JM6DPYT3W26", "expiration": "May 21, 2020 4:49:02 AM", "sessionToken": "IQoJb3JpZ2luX2VjEMz//////////wEaCXVzLWVhc3QtMiJHMEUCIQDZb72g/z4UOsMlWLtoAyno6Jk545DwKGEjayPKRdUJwwIgRS/mJvISHj8BJWTH5TK6LZ66m2AgC8fKC+XcUa5XYvYqkgIIJRABGgw4NjE4Mjg2OTY4OTIiDNaouyzPFFXT2AKZWSrvAVAgKWprQ6DKQ0SuPO3cytAF9LWtoDaW4FArQuaMymjsxSfHS8fZ+SIIeSrJczg2/upmDGp3KfIUFLLOcTUMavMa3aRZgf1Rz7IZxh8WT753eXgkD8gW30CCJME/o5vxeXKZkRA+4xAvblC/C2fDgXIDw/CX3w7XxxdbK6KJP3onKx/hJlw3McnVAdIDIqZO40l7NJW9rVLomBG5ln6R/PBvYf2LCTEKKCB7dZ49JOKBib8yd3rDy4JsUwRQPFaHYgk57cWEB5pPfi1YIS/3nI71VPRw2RBeUMHG/WkJIP1RWuwmxM+RVx7GxHfC1rpbMK70l/YFOoUCovD5sdI4oKejlMkKoE7E9QeuKnUZVPPN/9JxSt3jkxtXiQ+/9V563MgcXJ0Rmde0mxjndlNW+xn5OEIqwq8lsq9Ni49b05RjtL1JL4CYB8PQnspMglnQmxVAJrj13z1aaOOYTUg4FSQnD4jNkaA1wFFwUulOhFkaRyHnAbWltIN0m0r1IbQCTYcInxXp82GxyTaR/Evw6orazXQDpZinVlsh8/+q0HAtpgh5JRoFlGqSVopBmHj4kYr7ENiSQSO7f7LyxocfHxYHNU+6y6BswSmxnbMYcII5WmLRrHZJe3rI0haOF1bc1YQs90NRbk2g0EN+WgURp29jk57yb0dra4I4/YEM"}, "assumedRoleUser": {"assumedRoleId": "AROA4RKH6JM6G4PBGAVG7:securityhub", "arn": "arn:aws:sts::861828696892:assumed-role/AWSServiceRoleForSecurityHub/securityhub"}}, "requestID": "31a72682-1202-4180-8a84-cf9dfc770807", "eventID": "6e388847-ffc1-4466-9167-30918d79db9c", "resources": [{"ARN": "arn:aws:iam::861828696892:role/aws-service-role/securityhub.amazonaws.com/AWSServiceRoleForSecurityHub", "accountId": "861828696892", "type": "AWS::IAM::Role"}], "eventType": "AwsApiCall", "recipientAccountId": "861828696892", "sharedEventID": "ba9ccd97-37da-4a45-84bc-9e8ffaf3dc6f"}'
-    retval = esClient.index(index=esIndex, body=jsonDoc)
-    if DEBUG_ES: print(f"ReturnVal: {retval}")
+    retval = {}
+    retval['_shards'] = {}
+    retval['_shards']['failed'] = 0
+    try:
+        retval = esClient.index(index=esIndex, body=jsonDoc)
+        if DEBUG_ES: print(f"ReturnVal: {retval}")
+    except:
+        print("--- Error indexing the following doc ----")
+        print(jsonDoc)
+        print("--- End of index error dump ----")
     
     if retval['_shards']['failed'] > 0:
         print(f"ReturnVal: {retval['_index']} {retval['_shards']}")
@@ -135,7 +142,7 @@ def fixCloudWatchJson(CloudTrailMsg):
     fieldsToDelete = []
 
     for key, val in CloudTrailMsgJson.items():
-        if val == "DELETEME":
+        if val == "DELETEME" or val == "" :
             fieldsToDelete.append(key)
 
     for key in fieldsToDelete:
@@ -285,6 +292,7 @@ def lambda_handler(event, context):
             if DEBUG: print(f"CloudTrail event #{n}/{m}: ")
             if DEBUG: print(CloudTrailMsg)
          
+            
             # Send Message to Elasticsearch
             ret = indexDocElement(esClient, index, CloudTrailMsg)
             if DEBUG: print (f"Index Result: {ret['_shards']}")
