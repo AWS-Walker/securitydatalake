@@ -121,8 +121,8 @@ def fixCloudWatchJson(CloudTrailMsg):
     CloudTrailMsg = ireplace(',}', '}', CloudTrailMsg)
     CloudTrailMsg = ireplace(':"}', ':"DELETEME"}', CloudTrailMsg)
 
-    CloudTrailMsg = ireplace("False,", '"DELETEME",', CloudTrailMsg)
-    CloudTrailMsg = ireplace("True,", '"DELETEME",', CloudTrailMsg)
+    CloudTrailMsg = ireplace("False,", '"false",', CloudTrailMsg)
+    CloudTrailMsg = ireplace("True,", '"true",', CloudTrailMsg)
     CloudTrailMsg = ireplace("null,", '"DELETEME",', CloudTrailMsg)
     CloudTrailMsg = ireplace("none,", '"DELETEME",', CloudTrailMsg)
     
