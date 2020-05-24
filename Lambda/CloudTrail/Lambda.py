@@ -89,7 +89,7 @@ def connectES(esEndPoint):
     try:
         esClient = Elasticsearch(
         hosts=[{'host': esEndPoint, 'port': 443}],
-        http_auth= ES_HTTP_AUTH
+        http_auth= ES_HTTP_AUTH,
         use_ssl=True,
         verify_certs=True,
         connection_class=RequestsHttpConnection)
