@@ -11,8 +11,6 @@
 # TO DO:
 # STS auth to ES instead of us
 # Find the right trigger batch size 
-# single ES put or bulk?
-# date in the index!!!!
 # KMS
 # set cloudwatch error if this lambda throws an error
 # knownBad and complex filters (AND/OR)
@@ -45,12 +43,13 @@ key = "knownGood.json"
 DEBUG = False 
 DEBUG_ES = False
 bulkMessages = []
-uploadType = "bulk"   # buld or single
+uploadType = "single"   # buld or single
 
 
 # Elasticsearch Domain
 ES_ENDPOINT = 'search-canva-gpqk7fy3xguvkfnhczlw3yxqui.us-east-2.es.amazonaws.com'
 ES_INDEX = 'cloudtrail'
+
 
 # Config file location on S3
 bucket = "config-awsvolks"
@@ -88,12 +87,14 @@ def connectES(esEndPoint):
     
 
 # Indexing of a single document 
-def indexDocElement(esClient, esIndex, jsonDoc):
+def indexDocElement(esClient, esIndex, uniqueId, jsonDoc):
     retval = {}
     retval['_shards'] = {}
     retval['_shards']['failed'] = 0
+    
     try:
-        retval = esClient.index(index=esIndex, body=jsonDoc)
+        retval = esClient.index(index=esIndex, body=jsonDoc, id=jsonDoc[uniqueId])
+        # print(f"Indexed document with unique ID {jsonDoc[uniqueId]}")
         if DEBUG_ES: print(f"ReturnVal: {retval}")
     except:
         print("--- Error indexing the following doc ----")
@@ -106,15 +107,16 @@ def indexDocElement(esClient, esIndex, jsonDoc):
 
 
 # Helper to index a bulk of documents
-def indexDocElementBulk():
+def indexDocElementBulk(uniqueIdField):
     print(f"Bulk indexing of {len(bulkMessages)} messages")
     
     for message in bulkMessages:
-      yield {
-          "_index": ES_INDEX,
-          '_op_type': 'index',
-          "_source": message,
-      }    
+        yield {
+            "_index": ES_INDEX,
+            "_id": message[uniqueIdField],
+            '_op_type': 'index',
+            "_source": message,
+        }    
     return
 
 
@@ -269,7 +271,7 @@ def lambda_handler(event, context):
     now = datetime.datetime.now()
     indexdate = now.strftime("%Y-%m-%d")
     index=ES_INDEX+'-'+indexdate
-    
+    uniqueIdFieldName = "eventID"
     
     # Connect to Elasticsearch
     esClient = connectES(ES_ENDPOINT)
@@ -288,7 +290,7 @@ def lambda_handler(event, context):
         n=n+1
         arrCloudWatch = decodeAndUncompress(KinesisEvent['kinesis']['data'])
         if DEBUG: print(arrCloudWatch)
-        
+
         
         if DEBUG: print("-----------CloudTrail Payload-------------")
         noOfCloudWatchMsg = len(arrCloudWatch['logEvents'])
@@ -301,7 +303,8 @@ def lambda_handler(event, context):
             CloudTrailMsg = fixCloudWatchJson(CloudTrailEvent['message'])   
             if 'sourceIPAddress' in CloudTrailMsg: getGeoIp(CloudTrailMsg['sourceIPAddress'])
             CloudTrailMsg = merge_dicts(CloudTrailMsg, metadata)
- 
+
+
             if checkForKnownGood(config, CloudTrailMsg):
                 CloudTrailMsg["Enriched"]["knownGood"] = "true"
 
@@ -309,18 +312,20 @@ def lambda_handler(event, context):
             if DEBUG: print(CloudTrailMsg)
          
             if uploadType == "single":
-                ret = indexDocElement(esClient, index, CloudTrailMsg)
+                ret = indexDocElement(esClient, index, uniqueIdFieldName, CloudTrailMsg)
                 if DEBUG: print (f"Index Result: {ret['_shards']}")
             else:
                 bulkMessages.append(CloudTrailMsg)
     
     
-    # Send bulk messages to Elasticsearch
+    # Send bulk messages to Elasticsearch 
+    # (eventID is unique message field used for the _id field in Elasticsearch to avoid duplicates)
     if uploadType == "bulk":
-        helpers.bulk(esClient,indexDocElementBulk())
+        helpers.bulk(esClient,indexDocElementBulk(uniqueIdFieldName))
     
-    totalIndexCount = esClient.count(index=ES_INDEX)
-    print (f"{n} Kinesis events received. {m} CloudTrail events parsed. Index size after: {totalIndexCount}")
+    # totalIndexCount = esClient.count(index=ES_INDEX)
+    # print (f"Index size after upload: {totalIndexCount['count']}")
+    print (f"{n} Kinesis events received. {m} CloudTrail events parsed.")
     print (f"--- End of function execution at at {now.hour}:{now.minute}:{now.second} ---")
     
     if DEBUG: 
