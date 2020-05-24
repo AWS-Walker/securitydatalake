@@ -15,8 +15,6 @@
 # set cloudwatch error if this lambda throws an error
 # knownBad and complex filters (AND/OR)
 
-
-
 import gzip
 import json
 import base64
@@ -25,7 +23,6 @@ import os
 import boto3
 import datetime
 
-
 # Elasticsearch 
 import requests
 from elasticsearch import Elasticsearch, RequestsHttpConnection, helpers 
@@ -33,6 +30,10 @@ import urllib3
 
 # Maxmind
 from geolite2 import geolite2
+
+# AWS Auth
+import requests
+from requests_aws4auth import AWS4Auth #pip install requests-aws4auth
 
 # Config file location on S3
 bucket = "config-awsvolks"
@@ -46,9 +47,21 @@ bulkMessages = []
 uploadType = "single"   # buld or single    !!!BULK CAUSED ERRORS!!!
 
 
-# Elasticsearch Domain
+# Elasticsearch Domain - NB Set ES_AUTH_TYPE and ES_HTTP_AUTH values according to auth type.
+ES_REGION = 'ap-southeast-2'
 ES_ENDPOINT = 'search-canva-gpqk7fy3xguvkfnhczlw3yxqui.us-east-2.es.amazonaws.com'
 ES_INDEX = 'cloudtrail'
+ES_AWS_SERVICE = 'es'
+ES_INDEX = 'cloudtrail'
+ES_CREDENTIALS = boto3.Session().get_credentials()
+ES_AWS_AUTH = AWS4Auth(ES_CREDENTIALS.access_key, ES_CREDENTIALS.secret_key, ES_REGION, ES_AWS_SERVICE, session_token=ES_CREDENTIALS.token)
+#Choose auth type.
+ES_AUTH_TYPE = 'INT' #INT for internal user, IAM for IAM.
+# Set http auth value for ES connection.
+if ES_AUTH_TYPE == 'INT': 
+    ES_HTTP_AUTH = ('volker', 'Password1!') # Should be stored in KMS.
+elif ES_AUTH_TYPE == 'IAM': 
+    ES_HTTP_AUTH = ES_AWS_AUTH
 
 # unique field of event message that is getting indexed
 uniqueIdFieldName = "eventID"                
@@ -73,11 +86,11 @@ def getS3ConfiFile(bucket, key):
     
     
 def connectES(esEndPoint):
-    if DEBUG_ES: print ('Connecting to the ES Endpoint {0}'.format(esEndPoint))
+    if DEBUG_ES: print ('Connecting to the ES Endpoint {0} using {1}'.format(esEndPoint,ES_AUTH_TYPE))
     try:
         esClient = Elasticsearch(
         hosts=[{'host': esEndPoint, 'port': 443}],
-        http_auth=('volker', 'Password1!'),
+        http_auth= ES_HTTP_AUTH
         use_ssl=True,
         verify_certs=True,
         connection_class=RequestsHttpConnection)
@@ -86,7 +99,6 @@ def connectES(esEndPoint):
         print("Unable to connect to {0}".format(esEndPoint))
         print(E)
         exit(3)
-    
 
 # Indexing of a single document 
 def indexDocElement(esClient, esIndex, uniqueId, jsonDoc):
