@@ -9,11 +9,13 @@
 # Upload S3 config file into S3 bucket and update bucket and file name to the config of this Lambda
 
 # TO DO:
+# STS auth to ES instead of us
 # Find the right trigger batch size 
 # single ES put or bulk?
 # date in the index!!!!
 # KMS
 # set cloudwatch error if this lambda throws an error
+# knownBad and complex filters (AND/OR)
 
 
 
@@ -39,10 +41,12 @@ bucket = "config-awsvolks"
 key = "knownGood.json"
 
 
-
 # Globals
 DEBUG = False 
 DEBUG_ES = False
+bulkMessages = []
+uploadType = "bulk"   # buld or single
+
 
 # Elasticsearch Domain
 ES_ENDPOINT = 'search-canva-gpqk7fy3xguvkfnhczlw3yxqui.us-east-2.es.amazonaws.com'
@@ -83,7 +87,7 @@ def connectES(esEndPoint):
         exit(3)
     
 
-
+# Indexing of a single document 
 def indexDocElement(esClient, esIndex, jsonDoc):
     retval = {}
     retval['_shards'] = {}
@@ -101,6 +105,20 @@ def indexDocElement(esClient, esIndex, jsonDoc):
     return retval
 
 
+# Helper to index a bulk of documents
+def indexDocElementBulk():
+    print(f"Bulk indexing of {len(bulkMessages)} messages")
+    
+    for message in bulkMessages:
+      yield {
+          "_index": ES_INDEX,
+          '_op_type': 'index',
+          "_source": message,
+      }    
+    return
+
+
+# string replace (all occurences, case insensitive)
 def ireplace(old, new, text):
     # change not one, but all occurrences of old with new - in a case insensitive fashion
     idx = 0
@@ -112,24 +130,20 @@ def ireplace(old, new, text):
         idx = index_l + len(new) 
     return text
     
-    
+
+# fix JSON bugs of CloudWatch   
 def fixCloudWatchJson(CloudTrailMsg):
 
-    # repair crappy JSON format of CloudWatch
     CloudTrailMsgOrig = CloudTrailMsg
     CloudTrailMsg = ireplace('["]', '[""]', CloudTrailMsg)
     CloudTrailMsg = ireplace(',}', '}', CloudTrailMsg)
     CloudTrailMsg = ireplace(':"}', ':"DELETEME"}', CloudTrailMsg)
-
     CloudTrailMsg = ireplace("False,", '"false",', CloudTrailMsg)
     CloudTrailMsg = ireplace("True,", '"true",', CloudTrailMsg)
     CloudTrailMsg = ireplace("null,", '"DELETEME",', CloudTrailMsg)
     CloudTrailMsg = ireplace("none,", '"DELETEME",', CloudTrailMsg)
     
-    
     CloudTrailMsgJson = {}
-    
-    
     try:
         CloudTrailMsgJson = json.loads(CloudTrailMsg)
     except:
@@ -137,10 +151,8 @@ def fixCloudWatchJson(CloudTrailMsg):
         print(CloudTrailMsg)
         print("----Json decode error dump end ---")
     
-    
     # Remove empty fields. Don't replace with empty string as they often are dics in ES which causes errors
     fieldsToDelete = []
-
     for key, val in CloudTrailMsgJson.items():
         if val == "DELETEME" or val == "" :
             fieldsToDelete.append(key)
@@ -150,20 +162,22 @@ def fixCloudWatchJson(CloudTrailMsg):
            
     return CloudTrailMsgJson   
     
-    
+
+# base64/gzip helper
 def decodeAndUncompress(compressed_payload):
     compressed_payload = base64.b64decode(compressed_payload)
     uncompressed_payload = gzip.decompress(compressed_payload)
     return json.loads(uncompressed_payload)
 
-
+# base64/gzip helper
 def encodeAndCompress(payload):
     message_bytes = str(payload).encode('ascii')
     payload = base64.b64encode(message_bytes)
     payload = gzip.compress(payload)
     return payload
     
-    
+
+# merge two Python dictionaries
 def merge_dicts(a, b, path=None):
     if path is None: path = []
     for key in b:
@@ -174,12 +188,13 @@ def merge_dicts(a, b, path=None):
                 pass  # same leaf value
             else:
                 raise Exception(
-                        'Conflict while merging metadatas and the log entry at %s' % '.'.join(path + [str(key)]))
+                        'Conflict while merging two dictionaries at %s' % '.'.join(path + [str(key)]))
         else:
             a[key] = b[key]
     return a
     
     
+# fill global variable metadata with GeoIP information (MaxmindDB)
 def getGeoIp(sourceIPAddress):
     
     try:
@@ -220,6 +235,7 @@ def getGeoIp(sourceIPAddress):
     return 
 
 
+# check JSON message for a match in the knownGood configuatin file (field:regex)
 def checkForKnownGood(config, message):
     knownGood = False
     
@@ -247,7 +263,7 @@ def checkForKnownGood(config, message):
 #
 # main
 #
-
+ 
 def lambda_handler(event, context):
            
     now = datetime.datetime.now()
@@ -261,12 +277,12 @@ def lambda_handler(event, context):
     # get S3 config file
     config = getS3ConfiFile(bucket, key)
     
-    if DEBUG: print("-----------Kinesis-------------")
+    if DEBUG: print("-----------Kinesis Payload -------------")
     if DEBUG: print(event)
     noOfKinesisMsg = len(event['Records'])
     print (f"Received {noOfKinesisMsg} CloudWatch messages in Kinesis data stream")
     
-    if DEBUG: print("-----------CloudWatch-------------")
+    if DEBUG: print("-----------CloudWatch Payload -------------")
     n=0
     for KinesisEvent in event['Records']:
         n=n+1
@@ -274,7 +290,7 @@ def lambda_handler(event, context):
         if DEBUG: print(arrCloudWatch)
         
         
-        if DEBUG: print("-----------CloudTrail-------------")
+        if DEBUG: print("-----------CloudTrail Payload-------------")
         noOfCloudWatchMsg = len(arrCloudWatch['logEvents'])
         print (f"Received {noOfCloudWatchMsg} events in CloudWatch message no.{n} ")
         
@@ -292,35 +308,27 @@ def lambda_handler(event, context):
             if DEBUG: print(f"CloudTrail event #{n}/{m}: ")
             if DEBUG: print(CloudTrailMsg)
          
-            
-            # Send Message to Elasticsearch
-            ret = indexDocElement(esClient, index, CloudTrailMsg)
-            if DEBUG: print (f"Index Result: {ret['_shards']}")
-            
-            
-    print (f"{n} Kinesis events received. {m} CloudTrail events parsed at {now.hour}:{now.minute}:{now.second}")
+            if uploadType == "single":
+                ret = indexDocElement(esClient, index, CloudTrailMsg)
+                if DEBUG: print (f"Index Result: {ret['_shards']}")
+            else:
+                bulkMessages.append(CloudTrailMsg)
     
-
+    
+    # Send bulk messages to Elasticsearch
+    if uploadType == "bulk":
+        helpers.bulk(esClient,indexDocElementBulk())
+    
+    totalIndexCount = esClient.count(index=ES_INDEX)
+    print (f"{n} Kinesis events received. {m} CloudTrail events parsed. Index size after: {totalIndexCount}")
+    print (f"--- End of function execution at at {now.hour}:{now.minute}:{now.second} ---")
+    
     if DEBUG: 
         print(f"=========={now.minute}:{now.second}=============")
     
-    
-    
-    
-    # Test Event
-    RunTest = False
-    if RunTest :
-        print(f"==========Test Event Sent=============")
-        testevent = '{"eventVersion": "0.01","eventTime": "x","eventSource": "LambdaTest","eventName": "LambdaTest","Enriched": {"knownGood": "true"}, "responseElements": None}'
-        testevent = fixCloudWatchJson(testevent)  
-        testevent['eventTime'] = now.strftime("%Y-%m-%d"+"T"+"%H:%M:%SZ")
-        print(testevent)
-        indexDocElement(esClient, index, testevent)
-    
-    
     return {
         'statusCode': 200,
-        'body': json.dumps('Hello from Lambda!')
+        'body': json.dumps('ok')
     }
 
 
