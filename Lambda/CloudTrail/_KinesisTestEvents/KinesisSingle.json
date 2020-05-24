@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "kinesis": {
+        "kinesisSchemaVersion": "1.0",
+        "partitionKey": "b3a144be5b356cb2389eb8f09387ddf8",
+        "sequenceNumber": "49607210308017030161433765676880662666879851295779323938",
+        "data": "H4sIAAAAAAAAAO2ZWW8bNxDHv4uew4T3oTfF8qHmci0jaVIHAZccuotqteoecdwg372zu3Js2ImRIkbhGvsiQTvDmeGf5A9D7edJAXXtT+H4fAOT6WQ+O559eLG7XM72dyePJuXZGip8bDWz3GqnreP4eFWe7ldlu0HLzqps43Hl8xXZWpZNBb64NujDpd+Htibg66b3r9usDlW+afJyvZevGqjqyfT3K1En7/ugux9h3XSmz5M8YmyhpGZSMUsptdLRLoc2kjoqhFZOOs2MdZQLyg011AkjhDCaYsomxyk3vsDqmXKUSS2dlFQ/upACw38+mUCX8TXWg5WdTKYnE/aYqpPJo5NJW0O1iGjNm3O0oG+D4vU+s7puC4hH5Qp6102Vr0O+8atFHOxHr2by6NmB/uWF3l/8qufHB68PpqFcp/z0uS+y6Hc/QWibPieO99WQG7+n/qye1k09nV7VdeqHjKTClE9mb5ZLqD7mAboK9spqp4/85JYEIZTtutmWdzXyhRk1eQbnF/UvF1/rn6vl/HBPzXrHGt0wJuZr4FMzqLJ9tsAKobom1L9T6Jta5L64pkWvAZpIPYgwiDJM/rEv/N/lGq2PQ1l8T6kf0aRb/pe+2C749+J8Qc8zyBZxDyJUvhN87hvfydCZfNNUedY2UA/CFMnP2uaPblMF38CQOvlVPagU8EhtQwx5OeWUUEU4P2ZsSt2U0XeYtAudrz+Wf0J8et47fmv2Q3X9Bj/Oi+8ElOxdn7p3W5ZtFQZHlP16tAuvr6rsQ7NTQX9E/OoINmXVDMqe1UdwenGgLjjAhh3Up1gczmKscOPcUvx2DWanGP92twr+avGsH/oKK+vYgu7rdrXqTfWmXNewu4KiQ8tVSz9oMe9jC5ls4k4TH6IhEnlDMp5lxLgE3kXlGIdLBbaDXCa9SxRISEIRqVBXKzNDkrPcG6uS1+Fy0PFXepzVs02+41erbfV4MHJ0mN2yIb/gWv4cE9nIxJGJIxN/iIn0Z5i47uYMDwWMVkBiWYyES+uJjDQS7zNJtPRcmBS9MdlNMEoGlAMn2riMSC0s8UkDoZExmXSG4GT3Box8BOOdgfHg9bu9gzf85QjGBwlG9nPN4vYcL9ui8NX5/5WIBgK12PkRBswiETlgqygNiTFECt4zIfkNIgYZkwEAwoE5ggwUxHkuSQBqmBNOCWbuDRHFSMQ7I+L+b1KJ54fzkYgjER94qyiTChIQjJrinVjKGEimgBJw1lMlrWSe3gBj8oxmSjNCXYp48RaRZFZqgvdu6zOOIT2/N2CUIxhHMI5g/A9axYfCRK6p7u7JxCn8kNE5YhXPSEwCpElSGsVuMNEoxZ2NQJLwikgQmnhlAjEqOKE9t/jj3jBRjUy8MyY+5W/fLtTBq5GJIxMf6vUZuQHCCUGMk4xIbgyxImCrKFnwkalMS3uDiNJn3gLXhGlnkIgU/YWj2CXixVox4MH6e0NEPRJxfNMyEvGHiDi+abn8X9Em7BatIxGyQCTLDHE+cqIEp0FDDCkzN8CYLN6buREEEJ54506CuCwxYozVCcBr5vTdgfH9l38APhl6b0kkAAA=",
+        "approximateArrivalTimestamp": 1590146494.667
+      },
+      "eventSource": "aws:kinesis",
+      "eventVersion": "1.0",
+      "eventID": "shardId-000000000002:49607210308017030161433765676880662666879851295779323938",
+      "eventName": "aws:kinesis:record",
+      "invokeIdentityArn": "arn:aws:iam::861828696892:role/LambdaVPC",
+      "awsRegion": "us-east-2",
+      "eventSourceARN": "arn:aws:kinesis:us-east-2:861828696892:stream/CloudTrail"
+    }
+  ]
+}
