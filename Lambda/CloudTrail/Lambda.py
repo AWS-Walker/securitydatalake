@@ -48,11 +48,10 @@ uploadType = "single"   # buld or single    !!!BULK CAUSED ERRORS!!!
 
 
 # Elasticsearch Domain - NB Set ES_AUTH_TYPE and ES_HTTP_AUTH values according to auth type.
-ES_REGION = 'ap-southeast-2'
+ES_REGION = 'us-east-2'
 ES_ENDPOINT = 'search-canva-gpqk7fy3xguvkfnhczlw3yxqui.us-east-2.es.amazonaws.com'
 ES_INDEX = 'cloudtrail'
 ES_AWS_SERVICE = 'es'
-ES_INDEX = 'cloudtrail'
 ES_CREDENTIALS = boto3.Session().get_credentials()
 ES_AWS_AUTH = AWS4Auth(ES_CREDENTIALS.access_key, ES_CREDENTIALS.secret_key, ES_REGION, ES_AWS_SERVICE, session_token=ES_CREDENTIALS.token)
 #Choose auth type.
