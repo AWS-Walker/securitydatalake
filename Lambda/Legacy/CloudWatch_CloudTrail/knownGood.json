@@ -1,0 +1,13 @@
+{
+	"knownGood" : [
+		{
+			"eventSource": "health.amazonaws.com"
+		},
+		{
+			"userIdentity.sessionContext.sessionIssuer.userName": "AwsSecurityAudit"
+		}
+	]
+}
+
+
+

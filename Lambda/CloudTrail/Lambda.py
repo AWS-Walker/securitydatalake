@@ -43,13 +43,15 @@ key = "knownGood.json"
 DEBUG = False 
 DEBUG_ES = False
 bulkMessages = []
-uploadType = "single"   # buld or single
+uploadType = "single"   # buld or single    !!!BULK CAUSED ERRORS!!!
 
 
 # Elasticsearch Domain
 ES_ENDPOINT = 'search-canva-gpqk7fy3xguvkfnhczlw3yxqui.us-east-2.es.amazonaws.com'
 ES_INDEX = 'cloudtrail'
 
+# unique field of event message that is getting indexed
+uniqueIdFieldName = "eventID"                
 
 # Config file location on S3
 bucket = "config-awsvolks"
@@ -92,14 +94,20 @@ def indexDocElement(esClient, esIndex, uniqueId, jsonDoc):
     retval['_shards'] = {}
     retval['_shards']['failed'] = 0
     
+    uniqueIdValue = jsonDoc[uniqueId]
+    
     try:
-        retval = esClient.index(index=esIndex, body=jsonDoc, id=jsonDoc[uniqueId])
+        retval = esClient.index(index=esIndex, body=jsonDoc, id=uniqueIdValue)
         # print(f"Indexed document with unique ID {jsonDoc[uniqueId]}")
         if DEBUG_ES: print(f"ReturnVal: {retval}")
-    except:
+    except Exception as inst:
         print("--- Error indexing the following doc ----")
-        print(jsonDoc)
+        #print(jsonDoc)
+        print (type(inst))     # the exception instance
+        print (inst.args)      # arguments stored in .args
+        print (inst)           # __str__ allows args to be printed directly
         print("--- End of index error dump ----")
+        
     
     if retval['_shards']['failed'] > 0:
         print(f"ReturnVal: {retval['_index']} {retval['_shards']}")
@@ -271,7 +279,7 @@ def lambda_handler(event, context):
     now = datetime.datetime.now()
     indexdate = now.strftime("%Y-%m-%d")
     index=ES_INDEX+'-'+indexdate
-    uniqueIdFieldName = "eventID"
+
     
     # Connect to Elasticsearch
     esClient = connectES(ES_ENDPOINT)
